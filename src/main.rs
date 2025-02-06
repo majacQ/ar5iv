@@ -15,8 +15,8 @@ use ar5iv::cache::{
   assemble_log_with_cache, assemble_paper_asset_with_cache, assemble_paper_with_cache, Cache,
   LuckyStore
 };
-use ar5iv::assemble_asset::{fetch_zip};
-use ar5iv::constants::AR5IV_CSS_URL;
+use ar5iv::assemble_asset::fetch_zip;
+use ar5iv::constants::{AR5IV_FONTS_CSS_URL,AR5IV_CSS_URL,SITE_CSS_URL};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -28,11 +28,17 @@ lazy_static! {
   static ref TRAILING_ZIP_EXT: Regex = Regex::new("[.]zip$").unwrap();
 }
 
+fn default_context() -> HashMap<&'static str, &'static str> {
+  let mut map: HashMap<&'static str, &'static str> = HashMap::new();
+  map.insert("AR5IV_FONTS_CSS_URL", AR5IV_FONTS_CSS_URL);
+  map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
+  map.insert("SITE_CSS_URL", SITE_CSS_URL);
+  map
+}
+
 #[get("/")]
 async fn about() -> Template {
-  let mut map: HashMap<&'static str, &'static str> = HashMap::new();
-  map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
-  Template::render("ar5iv", &map)
+  Template::render("ar5iv", default_context())
 }
 
 #[get("/favicon.ico")]
@@ -46,14 +52,11 @@ async fn favicon() -> Option<NamedFile> {
 async fn get_html(
   conn: Option<Connection<Cache>>,
   id: &str,
-) -> Result<content::RawHtml<String>, Template> {
+) -> Result<content::RawHtml<String>, Redirect> {
   if let Some(paper) = assemble_paper_with_cache(conn, None, id, false).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
-    map.insert("id", id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
-    Err(Template::render("404", &map))
+    Err(Redirect::temporary(format!("https://arxiv.org/abs/{}",id)))
   }
 }
 #[get("/html/<field>/<id>")]
@@ -61,15 +64,11 @@ async fn get_field_html(
   conn: Option<Connection<Cache>>,
   field: &str,
   id: &str,
-) -> Result<content::RawHtml<String>, Template> {
+) -> Result<content::RawHtml<String>, Redirect> {
   if let Some(paper) = assemble_paper_with_cache(conn, Some(field), id, false).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
-    let arxiv_id = format!("{}/{}", field, id);
-    map.insert("id", &arxiv_id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
-    Err(Template::render("404", &map))
+    Err(Redirect::temporary(format!("https://arxiv.org/abs/{}/{}", field, id)))
   }
 }
 
@@ -111,6 +110,47 @@ async fn get_paper_subsubdir_asset(
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
 }
+#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<filename>")]
+async fn get_paper_sub3dir_asset(
+  conn: Option<Connection<Cache>>,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
+}
+#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<filename>")]
+async fn get_paper_sub4dir_asset(
+  conn: Option<Connection<Cache>>,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  sub4dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
+}
+#[get("/html/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<sub5dir>/<filename>")]
+#[allow(clippy::too_many_arguments)]
+async fn get_paper_sub5dir_asset(
+  conn: Option<Connection<Cache>>,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  sub4dir: &str,
+  sub5dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + sub5dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, None, id, &compound_name).await
+}
+
 #[get("/html/<field>/<id>/assets/<subdir>/<filename>", rank = 2)]
 async fn get_field_paper_subdir_asset(
   conn: Option<Connection<Cache>>,
@@ -134,6 +174,57 @@ async fn get_field_paper_subsubdir_asset(
   let compound_name = subdir + "/" + subsubdir + "/" + filename;
   assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
 }
+
+#[get("/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<filename>", rank = 2)]
+async fn get_field_paper_sub3dir_asset(
+  conn: Option<Connection<Cache>>,
+  field: &str,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
+}
+
+#[get("/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<filename>", rank = 2)]
+#[allow(clippy::too_many_arguments)]
+async fn get_field_paper_sub4dir_asset(
+  conn: Option<Connection<Cache>>,
+  field: &str,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  sub4dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
+}
+
+#[get(
+  "/html/<field>/<id>/assets/<subdir>/<sub2dir>/<sub3dir>/<sub4dir>/<sub5dir>/<filename>",
+  rank = 2
+)]
+#[allow(clippy::too_many_arguments)]
+async fn get_field_paper_sub5dir_asset(
+  conn: Option<Connection<Cache>>,
+  field: &str,
+  id: &str,
+  subdir: String,
+  sub2dir: &str,
+  sub3dir: &str,
+  sub4dir: &str,
+  sub5dir: &str,
+  filename: &str,
+) -> Result<(ContentType, Vec<u8>), Option<NamedFile>> {
+  let compound_name = subdir + "/" + sub2dir + "/" + sub3dir + "/" + sub4dir + "/" + sub5dir + "/" + filename;
+  assemble_paper_asset_with_cache(conn, Some(field), id, &compound_name).await
+}
+
 
 #[get("/abs/<field>/<id>")]
 async fn abs_field(field: &str, id: &str) -> Redirect {
@@ -171,16 +262,20 @@ async fn pdf(id: String) -> Redirect {
 }
 
 #[get("/assets/<name>")]
-async fn assets(name: String) -> Option<NamedFile> {
+async fn assets(name: &str) -> Option<NamedFile> {
   NamedFile::open(Path::new("assets/").join(name)).await.ok()
 }
+#[get("/assets/fonts/<name>")]
+async fn font_assets(name: &str) -> Option<NamedFile> {
+  NamedFile::open(Path::new("assets/fonts/").join(name)).await.ok()
+}
+
 
 #[catch(404)]
 fn general_not_found(req: &Request) -> Template {
-  let mut map: HashMap<&str, &str> = HashMap::new();
   let uri_id = req.uri().path().to_string();
+  let mut map = default_context();
   map.insert("id", &uri_id[1..]);
-  map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
   Template::render("404", &map)
 }
 
@@ -192,9 +287,8 @@ async fn get_log(
   if let Some(paper) = assemble_log_with_cache(conn, None, id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
+    let mut map = default_context();
     map.insert("id", id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
     Err(Template::render("404", &map))
   }
 }
@@ -207,10 +301,10 @@ async fn get_field_log(
   if let Some(paper) = assemble_log_with_cache(conn, Some(field), id).await {
     Ok(content::RawHtml(paper))
   } else {
-    let mut map: HashMap<&str, &str> = HashMap::new();
+    let mut map = default_context();
     let arxiv_id = format!("{}/{}", field, id);
     map.insert("id", &arxiv_id);
-    map.insert("AR5IV_CSS_URL", AR5IV_CSS_URL);
+
     Err(Template::render("404", &map))
   }
 }
@@ -241,7 +335,7 @@ async fn feeling_lucky(lucky_store: &State<LuckyStore>, conn_opt: Option<Connect
 
 #[get("/robots.txt")]
 fn robots_txt() -> (ContentType, &'static str) {
-  (ContentType::Plain, 
+  (ContentType::Plain,
 r###"User-agent: *
 Disallow: /log/
 "###) }
@@ -275,11 +369,18 @@ fn rocket() -> _ {
         get_paper_asset,
         get_paper_subdir_asset,
         get_paper_subsubdir_asset,
+        get_paper_sub3dir_asset,
+        get_paper_sub4dir_asset,
+        get_paper_sub5dir_asset,
         get_field_paper_asset,
         get_field_paper_subdir_asset,
         get_field_paper_subsubdir_asset,
+        get_field_paper_sub3dir_asset,
+        get_field_paper_sub4dir_asset,
+        get_field_paper_sub5dir_asset,
         about,
         assets,
+        font_assets,
         favicon,
         feeling_lucky,
         robots_txt
